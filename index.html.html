@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNIX/Linux Course Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --card:#14171c;
+    --card-border:#23272e;
+    --card-border-hover:#31363f;
+    --text:#e7e9ec;
+    --text-dim:#8b929c;
+    --text-faint:#5b6169;
+    --green:#34d399;
+    --green-dim:#173229;
+    --amber:#f5b942;
+    --cyan:#4fd1e8;
+    --cyan-dim:#122b30;
+    --violet:#b18cf7;
+    --violet-dim:#241d38;
+    --chip-bg:#1c2128;
+    --chip-border:#2c323b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    line-height:1.5;
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+
+  header.top{margin-bottom:28px;}
+  header.top .eyebrow{
+    font-size:12px;color:var(--text-faint);letter-spacing:.04em;margin-bottom:6px;
+  }
+  header.top h1{
+    font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-0.01em;
+  }
+  header.top p{
+    color:var(--text-dim);font-size:14.5px;margin:0 0 18px;max-width:60ch;
+  }
+
+  .stats{
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;
+  }
+  .stat{
+    background:var(--card);border:1px solid var(--card-border);
+    border-radius:10px;padding:10px 14px;flex:1;min-width:120px;
+  }
+  .stat .num{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:600;}
+  .stat .label{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .stat.notes .num{color:var(--cyan);}
+  .stat.gap .num{color:var(--amber);}
+  .stat.new .num{color:var(--violet);}
+
+  .legend{
+    display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);
+    margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--card-border);
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .dot.cyan{background:var(--cyan);}
+  .dot.amber{background:var(--amber);}
+  .dot.violet{background:var(--violet);}
+  .dot.green{background:var(--green);}
+
+  .search{
+    width:100%;background:var(--card);border:1px solid var(--card-border);
+    color:var(--text);border-radius:10px;padding:11px 14px;font-size:14px;
+    margin-bottom:20px;font-family:inherit;
+  }
+  .search::placeholder{color:var(--text-faint);}
+  .search:focus{outline:none;border-color:var(--card-border-hover);}
+
+  .step-card{
+    background:var(--card);border:1px solid var(--card-border);
+    border-radius:14px;margin-bottom:10px;overflow:hidden;
+    transition:border-color .15s ease;
+  }
+  .step-card:hover{border-color:var(--card-border-hover);}
+  .step-card.free{border-color:rgba(52,211,153,.35);}
+  .step-card.hidden{display:none;}
+
+  .step-header{
+    display:flex;align-items:center;gap:14px;padding:16px 16px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .step-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center;}
+  .step-body{flex:1;min-width:0;}
+  .step-num{font-size:10.5px;color:var(--text-faint);letter-spacing:.06em;font-weight:600;margin-bottom:2px;}
+  .title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .step-title{font-size:15px;font-weight:700;}
+  .pill{
+    font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:20px;
+  }
+  .pill.free{background:var(--green-dim);color:var(--green);}
+  .pill.new{background:var(--violet-dim);color:var(--violet);}
+  .pill.notes{background:var(--cyan-dim);color:var(--cyan);}
+  .step-meta{font-size:12px;color:var(--text-dim);margin-top:5px;}
+  .step-right{flex-shrink:0;display:flex;align-items:center;gap:10px;}
+  .lock{color:var(--amber);font-size:15px;}
+  .chevron{
+    color:var(--text-faint);transition:transform .2s ease;font-size:12px;
+  }
+  .step-card.open .chevron{transform:rotate(180deg);}
+
+  .step-content{
+    max-height:0;overflow:hidden;transition:max-height .25s ease;
+  }
+  .step-content-inner{
+    padding:0 18px 20px 54px;font-size:13.5px;color:var(--text-dim);
+  }
+  .step-content-inner p{margin:0 0 10px;}
+  .step-content-inner h4{
+    color:var(--text);font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;
+    margin:16px 0 8px;font-weight:700;
+  }
+  .step-content-inner h4:first-child{margin-top:2px;}
+
+  .gap-note{
+    background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.25);
+    color:#e8c579;border-radius:8px;padding:10px 12px;font-size:13px;
+  }
+  .source-note{font-size:11.5px;color:var(--text-faint);margin-top:8px;}\n\n  .new-note{
+    background:rgba(177,140,247,.08);border:1px solid rgba(177,140,247,.25);
+    color:#cdb8fb;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;
+  }
+
+  code, .c{
+    font-family:'JetBrains Mono',monospace;background:var(--chip-bg);
+    border:1px solid var(--chip-border);border-radius:5px;padding:1.5px 6px;
+    font-size:12px;color:#d7dce3;white-space:nowrap;
+  }
+
+  table{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:13px;}
+  table th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;
+    color:var(--text-faint);padding:7px 10px;border-bottom:1px solid var(--card-border);
+    font-weight:600;
+  }
+  table td{
+    padding:8px 10px;border-bottom:1px solid var(--card-border);color:var(--text-dim);
+    vertical-align:top;
+  }
+  table td:first-child{color:var(--text);}
+  table tr:last-child td{border-bottom:none;}
+
+  pre{
+    background:#0e1013;border:1px solid var(--chip-border);border-radius:8px;
+    padding:12px 14px;overflow-x:auto;margin:0 0 14px;
+  }
+  pre code{
+    background:none;border:none;padding:0;white-space:pre;color:#c9d1d9;
+    font-size:12px;line-height:1.6;
+  }
+  .cm{color:#6a7280;}
+  .kw{color:#e5a1e0;}
+  .str{color:#9ad48c;}
+  .var{color:#f0b866;}
+
+  .no-results{
+    text-align:center;color:var(--text-faint);font-size:13.5px;padding:30px 0;display:none;
+  }
+
+  footer{
+    margin-top:28px;color:var(--text-faint);font-size:12px;text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">UNIX / LINUX · COURSE TRACKER</div>
+    <h1>Linux Fundamentals</h1>
+    <p>Rebuilt from your course screenshot, with your <span style="color:var(--text)">UNIX_Latest</span> notes matched to each step. The previously empty/no-notes steps have been filled only within their existing topics using important concepts reviewed from current Linux documentation.</p>
+
+    <div class="stats">
+      <div class="stat notes"><div class="num" id="notesCount">0</div><div class="label">steps with your notes</div></div>
+      <div class="stat gap"><div class="num" id="gapCount">0</div><div class="label">steps with no notes yet</div></div>
+      <div class="stat new"><div class="num">1</div><div class="label">topic added</div></div>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot green"></span>Free step</span>
+      <span><span class="dot cyan"></span>Notes found in your doc</span>
+      <span><span class="dot amber"></span>No notes captured yet</span>
+      <span><span class="dot violet"></span>Web-reviewed concepts expanded inside existing topics</span>
+    </div>
+  </header>
+
+  <input class="search" id="search" placeholder="Search steps or commands (e.g. grep, crontab, tar)…">
+
+  <div id="cards">
+
+    <!-- 01 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🐧</div>
+        <div class="step-body">
+          <div class="step-num">STEP 1</div>
+          <div class="title-row"><span class="step-title">01 · Introduction to Linux</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">8 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>What is an operating system?</h4>
+        <p>An <strong>operating system (OS)</strong> is the software layer that manages computer hardware and provides services to applications. In Linux, the <strong>kernel</strong> is the core component: it manages CPU scheduling, memory, devices, filesystems, networking, processes and system calls. A <strong>Linux distribution</strong> packages the kernel with user-space programs, libraries, package management, configuration and administration tools.</p>
+
+        <h4>Linux system — the big picture</h4>
+        <table>
+          <tr><th>Layer / resource</th><th>What it does</th><th>What to check</th></tr>
+          <tr><td>CPU</td><td>Executes instructions. Processes/threads compete for CPU time and are scheduled by the kernel.</td><td><code>lscpu</code>, <code>top</code>, <code>ps</code></td></tr>
+          <tr><td>RAM / memory</td><td>Fast working memory used by applications and the kernel. Linux also uses memory for page cache and can use swap when appropriate.</td><td><code>free -h</code>, <code>vmstat</code></td></tr>
+          <tr><td>Disk / storage</td><td>Persistent storage for files, applications, logs, databases and the OS. Much slower than RAM.</td><td><code>df -h</code>, <code>du -sh</code></td></tr>
+          <tr><td>Filesystem</td><td>Organizes persistent data into files/directories and tracks metadata such as ownership and permissions.</td><td><code>ls -l</code>, <code>df -T</code>, <code>findmnt</code></td></tr>
+          <tr><td>Processes</td><td>Running instances of programs. Each process has a PID and consumes resources.</td><td><code>ps aux</code>, <code>pgrep</code></td></tr>
+          <tr><td>Network</td><td>Provides communication between the host and other systems/services.</td><td><code>ip addr</code>, <code>ss -tulnp</code></td></tr>
+          <tr><td>Kernel</td><td>Controls access to hardware and provides system calls used by user-space programs.</td><td><code>uname -a</code>, <code>uname -r</code></td></tr>
+          <tr><td>Shell</td><td>Command interpreter such as Bash; handles variables, expansion, pipelines, redirection and command execution.</td><td><code>echo "$SHELL"</code>, <code>echo "$PATH"</code></td></tr>
+        </table>
+
+        <h4>CPU vs memory vs disk — understand the difference</h4>
+        <p><strong>CPU</strong> is compute capacity, <strong>RAM</strong> is working space, and <strong>disk</strong> is persistent storage. A program normally lives on disk, is loaded into memory, and its instructions are executed by the CPU. The kernel coordinates this movement and resource usage.</p>
+        <table>
+          <tr><th>Symptom</th><th>Likely area</th><th>First checks</th></tr>
+          <tr><td>CPU near 100% for a long time</td><td>CPU / busy processes</td><td><code>top</code>, <code>ps aux --sort=-%cpu</code></td></tr>
+          <tr><td>Very little available memory, heavy swapping</td><td>RAM / memory pressure</td><td><code>free -h</code>, <code>vmstat 1</code>, <code>swapon --show</code></td></tr>
+          <tr><td>Filesystem at 90–100%</td><td>Disk capacity / filesystem</td><td><code>df -h</code>, then <code>du -xhd1 /path</code></td></tr>
+          <tr><td>High I/O wait / slow disk operations</td><td>Storage I/O</td><td><code>top</code>, <code>vmstat 1</code>, <code>iostat</code> if installed</td></tr>
+          <tr><td>Application cannot connect to a service</td><td>Network / service</td><td><code>ss -tulnp</code>, <code>systemctl status ...</code>, logs</td></tr>
+        </table>
+
+        <h4>Memory concepts you should know</h4>
+        <ul>
+          <li><strong>Used memory is not simply “application memory”.</strong> Linux uses RAM for processes, the kernel and filesystem page cache.</li>
+          <li><strong>Available memory</strong> is generally more useful than looking only at the “free” column when judging whether the system is under memory pressure.</li>
+          <li><strong>Virtual memory</strong> gives processes virtual address spaces; the kernel maps those addresses to physical memory pages and may reclaim or swap eligible pages.</li>
+          <li><strong>Swap</strong> is disk-backed space used by the memory-management system. Heavy swap activity can be a sign of memory pressure and is much slower than RAM.</li>
+        </ul>
+        <pre><code>free -h
+vmstat 1
+swapon --show
+cat /proc/meminfo | head -n 15</code></pre>
+
+        <h4>CPU and load average</h4>
+        <p><strong>CPU utilization</strong> tells you how busy the processors are. <strong>Load average</strong> is different: it reflects the average number of tasks that are runnable or waiting in uninterruptible states. Always interpret load in relation to the number of CPU cores.</p>
+        <pre><code>lscpu
+uptime
+top
+ps -eo pid,ppid,comm,%cpu,%mem --sort=-%cpu | head</code></pre>
+
+        <h4>Processes and system calls</h4>
+        <p>Applications normally run in <strong>user space</strong>. When they need privileged kernel services—such as opening a file, creating a process, allocating resources or communicating with a device—they use <strong>system calls</strong>. The kernel performs the operation subject to permissions and system rules.</p>
+        <pre><code>ps aux
+pgrep -a java
+cat /proc/$$/status | head
+uname -r</code></pre>
+
+        <h4>Filesystem hierarchy</h4>
+        <p>Know the purpose of common directories such as <code>/etc</code> (system configuration), <code>/var</code> (variable data/logs), <code>/home</code> (user home directories), <code>/tmp</code> (temporary files), <code>/usr</code> (most user-space programs and data), <code>/dev</code> (device files), <code>/proc</code> (kernel/process information exposed as a virtual filesystem), and <code>/run</code> (volatile runtime data).</p>
+
+        <h4>Important first commands</h4>
+        <pre><code>uname -a
+cat /etc/os-release
+whoami
+id
+pwd
+echo "$SHELL"
+echo "$PATH"
+free -h
+df -h
+uptime
+ps aux
+man ls
+command -v ls</code></pre>
+
+        <p><strong>Operational mindset:</strong> when a server is slow, do not immediately assume “CPU problem.” Check CPU, memory/swap, disk capacity, disk I/O, processes, network and service logs, then correlate the evidence.</p>
+        <p class="source-note">Web reviewed: Linux kernel memory-management documentation; GNU Coreutils file-space documentation. The concepts above are added inside the existing Introduction to Linux topic; no new topic card was created.</p>
+      </div></div>
+    </div>
+
+    <!-- 02 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">📁</div>
+        <div class="step-body">
+          <div class="step-num">STEP 2</div>
+          <div class="title-row"><span class="step-title">02 · Paths and navigation</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">2 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>Absolute vs relative paths</h4>
+        <p><strong>Absolute path</strong> — always starts with <code>/</code> (root), works the same from anywhere. Example: <code>/var/log/syslog</code> can be read with <code>cat /var/log/syslog</code> from any directory.</p>
+        <p><strong>Relative path</strong> — starts from your current working directory (PWD), never begins with <code>/</code>. Uses <code>.</code> for current dir and <code>..</code> for parent. Example: from <code>/var</code>, the relative path to syslog is <code>log/syslog</code>; from <code>/var/log</code>, <code>cd ../tmp</code> goes up to <code>/var</code> then into <code>tmp</code>.</p>
+        <h4>Navigation commands</h4>
+        <table>
+          <tr><th>Command</th><th>Description</th><th>Example</th></tr>
+          <tr><td><code>pwd</code></td><td>Print current working directory</td><td><code>pwd</code></td></tr>
+          <tr><td><code>cd &lt;dir&gt;</code></td><td>Change directory</td><td><code>cd /var/log</code></td></tr>
+          <tr><td><code>cd ..</code></td><td>Move up one directory level</td><td><code>cd ..</code></td></tr>
+          <tr><td><code>cd ~</code></td><td>Go to home directory</td><td><code>cd ~</code></td></tr>
+          <tr><td><code>cd /</code></td><td>Go to root directory</td><td><code>cd /</code></td></tr>
+          <tr><td><code>cd -</code></td><td>Go to previous directory</td><td><code>cd -</code></td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 03 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">📋</div>
+        <div class="step-body">
+          <div class="step-num">STEP 3</div>
+          <div class="title-row"><span class="step-title">03 · Listing files</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <table>
+          <tr><th>Command</th><th>Description</th><th>Example</th></tr>
+          <tr><td><code>ls</code></td><td>List contents of a directory</td><td><code>ls</code></td></tr>
+          <tr><td><code>ls -l</code></td><td>Long listing (permissions, owner, size, date)</td><td><code>ls -l</code></td></tr>
+          <tr><td><code>ls -a</code></td><td>Include hidden files</td><td><code>ls -a</code></td></tr>
+          <tr><td><code>ls -lh</code></td><td>Long listing with human-readable sizes</td><td><code>ls -lh</code></td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 04 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">📖</div>
+        <div class="step-body">
+          <div class="step-num">STEP 4</div>
+          <div class="title-row"><span class="step-title">04 · Reading files</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <table>
+          <tr><th>Command</th><th>Description</th><th>Example</th></tr>
+          <tr><td><code>cat &lt;file&gt;</code></td><td>View contents of a file all at once</td><td><code>cat notes.txt</code></td></tr>
+          <tr><td><code>less &lt;file&gt;</code></td><td>Scroll through a file page by page</td><td><code>less logfile.log</code></td></tr>
+          <tr><td><code>head -n &lt;num&gt;</code></td><td>Show first N lines of a file</td><td><code>head -n 20 logfile.log</code></td></tr>
+          <tr><td><code>tail -n &lt;num&gt;</code></td><td>Show last N lines of a file</td><td><code>tail -n 50 logfile.log</code></td></tr>
+          <tr><td><code>tail -f &lt;file&gt;</code></td><td>Monitor a file for live updates (e.g. logs)</td><td><code>tail -f access.log</code></td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 05 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🗂️</div>
+        <div class="step-body">
+          <div class="step-num">STEP 5</div>
+          <div class="title-row"><span class="step-title">05 · Managing files</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <table>
+          <tr><th>Command</th><th>Description</th><th>Example</th></tr>
+          <tr><td><code>mkdir &lt;dir&gt;</code></td><td>Create a new directory</td><td><code>mkdir testdir</code></td></tr>
+          <tr><td><code>rmdir &lt;dir&gt;</code></td><td>Remove an empty directory</td><td><code>rmdir olddir</code></td></tr>
+          <tr><td><code>rm -r &lt;dir&gt;</code></td><td>Remove a directory and its contents</td><td><code>rm -r tempdir</code></td></tr>
+          <tr><td><code>touch &lt;file&gt;</code></td><td>Create an empty file or update its timestamp</td><td><code>touch report.txt</code></td></tr>
+          <tr><td><code>file &lt;file&gt;</code></td><td>Show file type</td><td><code>file script.sh</code></td></tr>
+        </table>
+        <h4>Finding files with <code>find</code></h4>
+        <table>
+          <tr><th>Example</th><th>Description</th></tr>
+          <tr><td><code>find /home -name "file.txt"</code></td><td>Find file by exact name</td></tr>
+          <tr><td><code>find . -name "*.log"</code></td><td>Find all .log files in current directory</td></tr>
+          <tr><td><code>find /var/log -type f</code></td><td>Find all files under a path</td></tr>
+          <tr><td><code>find /etc -type d</code></td><td>Find all directories under a path</td></tr>
+          <tr><td><code>find . -size +100M</code></td><td>Find files larger than 100MB</td></tr>
+          <tr><td><code>find . -size -10k</code></td><td>Find files smaller than 10KB</td></tr>
+          <tr><td><code>find . -mtime -7</code></td><td>Files modified in the last 7 days</td></tr>
+          <tr><td><code>find . -mtime +30</code></td><td>Files modified more than 30 days ago</td></tr>
+          <tr><td><code>find . -user john</code></td><td>Files owned by user john</td></tr>
+          <tr><td><code>find . -perm 644</code></td><td>Files with exact permission 644</td></tr>
+          <tr><td><code>find . -empty</code></td><td>Find all empty files and directories</td></tr>
+          <tr><td><code>find /tmp -name "*.tmp" -delete</code></td><td>Find and delete matched files</td></tr>
+          <tr><td><code>find . -name "*.log" -exec rm {} \;</code></td><td>Find and run a command on matches</td></tr>
+          <tr><td><code>find . -iname "*.JPG"</code></td><td>Case-insensitive name search</td></tr>
+          <tr><td><code>find . -newer file1 -not -newer file2</code></td><td>Files newer than file1, not newer than file2</td></tr>
+        </table>
+        <p>Count subdirectories one level down: <code>find /path/to/dir -maxdepth 1 -type d | wc -l</code></p>
+      </div></div>
+    </div>
+
+    <!-- 06 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🔍</div>
+        <div class="step-body">
+          <div class="step-num">STEP 6</div>
+          <div class="title-row"><span class="step-title">06 · Searching text</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4><code>grep</code> options &amp; examples</h4>
+        <table>
+          <tr><th>Option</th><th>Description</th><th>Example</th></tr>
+          <tr><td>(none)</td><td>Search for an exact word, case-sensitive</td><td><code>grep "error" file.txt</code></td></tr>
+          <tr><td><code>-i</code></td><td>Case-insensitive search</td><td><code>grep -i "error" logfile.txt</code></td></tr>
+          <tr><td><code>-v</code></td><td>Invert match (exclude pattern)</td><td><code>grep -v "DEBUG" log.txt</code></td></tr>
+          <tr><td><code>-n</code></td><td>Show line numbers</td><td><code>grep -n "ERROR" logfile.txt</code></td></tr>
+          <tr><td><code>-c</code></td><td>Count matching lines</td><td><code>grep -c "ERROR" logfile.txt</code></td></tr>
+          <tr><td><code>-l</code></td><td>Show filenames with matches</td><td><code>grep -l "ERROR" *.log</code></td></tr>
+          <tr><td><code>-w</code></td><td>Match whole words only</td><td><code>grep -w "fail" logfile.txt</code></td></tr>
+          <tr><td><code>-x</code></td><td>Match entire lines</td><td><code>grep -x "ERROR occurred" logfile.txt</code></td></tr>
+          <tr><td><code>-r</code></td><td>Search recursively in a directory</td><td><code>grep -r "error" /var/log/</code></td></tr>
+          <tr><td><code>-o</code></td><td>Show only the matched text</td><td><code>grep -o "ERROR" logfile.txt</code></td></tr>
+          <tr><td><code>-e</code></td><td>Use multiple patterns</td><td><code>grep -e "ERROR" -e "FAIL" logfile.txt</code></td></tr>
+          <tr><td><code>-A n</code></td><td>Show N lines after the match</td><td><code>grep -A 3 "ERROR" logfile.txt</code></td></tr>
+          <tr><td><code>-B n</code></td><td>Show N lines before the match</td><td><code>grep -B 2 "ERROR" logfile.txt</code></td></tr>
+          <tr><td><code>-C n</code></td><td>Show N lines before &amp; after</td><td><code>grep -C 2 "ERROR" logfile.txt</code></td></tr>
+          <tr><td><code>--color=auto</code></td><td>Highlight matches</td><td><code>grep --color=auto "error" file.txt</code></td></tr>
+          <tr><td>regex</td><td><code>^</code> = start, <code>$</code> = end of line</td><td><code>grep "^ERROR.*timeout$" file.txt</code></td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 07 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">✏️</div>
+        <div class="step-body">
+          <div class="step-num">STEP 7</div>
+          <div class="title-row"><span class="step-title">07 · Editing files</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <p><strong>sed</strong> (Stream EDitor) reads text line by line and can search, replace, delete, and insert.</p>
+        <table>
+          <tr><th>Task</th><th>Command</th><th>Notes</th></tr>
+          <tr><td>Replace first match per line</td><td><code>sed 's/old/new/' file.txt</code></td><td>Only the first match on each line</td></tr>
+          <tr><td>Replace all matches per line</td><td><code>sed 's/old/new/g' file.txt</code></td><td><code>g</code> = global</td></tr>
+          <tr><td>Replace and save to a new file</td><td><code>sed 's/old/new/g' file.txt &gt; newfile.txt</code></td><td>Redirect output</td></tr>
+          <tr><td>In-place edit with backup</td><td><code>sed -i.bak 's/old/new/g' file.txt</code></td><td>Edits original, keeps <code>.bak</code></td></tr>
+          <tr><td>Delete blank lines</td><td><code>sed '/^$/d' file.txt</code></td><td><code>d</code> = delete</td></tr>
+          <tr><td>Delete a specific line (e.g. 3)</td><td><code>sed '3d' file.txt</code></td><td>Deletes line number 3</td></tr>
+          <tr><td>Show only matching lines</td><td><code>sed -n '/pattern/p' file.txt</code></td><td><code>-n</code> suppresses default output</td></tr>
+          <tr><td>Insert a line before a match</td><td><code>sed '/pattern/i\New line before' file.txt</code></td><td><code>i\</code> = insert before</td></tr>
+          <tr><td>Append a line after a match</td><td><code>sed '/pattern/a\New line after' file.txt</code></td><td><code>a\</code> = append after</td></tr>
+          <tr><td>Replace on a specific line</td><td><code>sed '5s/error/ERROR/' file.txt</code></td><td>Only on line 5</td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 08 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🔐</div>
+        <div class="step-body">
+          <div class="step-num">STEP 8</div>
+          <div class="title-row"><span class="step-title">08 · Users and permissions</span><span class="pill" style="background:rgba(245,185,66,.12);color:var(--amber)">NO NOTES</span></div>
+          <div class="step-meta">4 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>Users, groups and identity</h4>
+        <table>
+          <tr><th>Command</th><th>Purpose</th><th>Example</th></tr>
+          <tr><td><code>whoami</code></td><td>Show the effective username</td><td><code>whoami</code></td></tr>
+          <tr><td><code>id</code></td><td>Show UID, primary GID and supplementary groups</td><td><code>id appuser</code></td></tr>
+          <tr><td><code>groups</code></td><td>Show group membership</td><td><code>groups appuser</code></td></tr>
+          <tr><td><code>useradd</code></td><td>Create a user account</td><td><code>sudo useradd -m appuser</code></td></tr>
+          <tr><td><code>usermod -aG</code></td><td>Add a user to a supplementary group</td><td><code>sudo usermod -aG app appuser</code></td></tr>
+          <tr><td><code>passwd</code></td><td>Set/change a password</td><td><code>sudo passwd appuser</code></td></tr>
+          <tr><td><code>groupadd</code></td><td>Create a group</td><td><code>sudo groupadd app</code></td></tr>
+        </table>
+        <h4>Permissions</h4>
+        <p>Every regular file has permissions for <strong>user (u)</strong>, <strong>group (g)</strong>, and <strong>other (o)</strong>. The basic bits are <strong>r</strong>ead, <strong>w</strong>rite and e<strong>x</strong>ecute. For directories, execute means the ability to traverse/search the directory.</p>
+        <table>
+          <tr><th>Command</th><th>Purpose</th><th>Example</th></tr>
+          <tr><td><code>ls -l</code></td><td>Inspect mode, owner and group</td><td><code>ls -l app.conf</code></td></tr>
+          <tr><td><code>chmod</code></td><td>Change permission bits</td><td><code>chmod 640 app.conf</code></td></tr>
+          <tr><td><code>chown</code></td><td>Change owner/group</td><td><code>chown appuser:app app.conf</code></td></tr>
+          <tr><td><code>chgrp</code></td><td>Change group ownership</td><td><code>chgrp app app.conf</code></td></tr>
+          <tr><td><code>umask</code></td><td>Control default permission bits for newly created files/directories</td><td><code>umask 022</code></td></tr>
+        </table>
+        <h4>Numeric permissions</h4>
+        <p><code>755</code> = <code>rwxr-xr-x</code>; <code>644</code> = <code>rw-r--r--</code>; <code>640</code> = <code>rw-r-----</code>. Avoid giving execute/write permission unless it is actually required.</p>
+        <h4>Sudo and ACLs</h4>
+        <pre><code>sudo -l
+sudo -u appuser id
+getfacl app.conf
+setfacl -m u:alice:r app.conf
+setfacl -x u:alice app.conf</code></pre>
+        <p>Use least privilege: grant the minimum access needed, and remember that ACLs can provide permissions beyond the basic owner/group/other mode bits.</p>
+        <p class="source-note">Web reviewed: Linux <code>useradd</code>/<code>passwd</code> documentation and GNU/Linux permission tooling.</p>
+</div></div>
+    </div>
+
+    <!-- 09 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">⚙️</div>
+        <div class="step-body">
+          <div class="step-num">STEP 9</div>
+          <div class="title-row"><span class="step-title">09 · Processes</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <p><strong><code>ps aux</code></strong> — <code>ps</code> lists running processes; <code>-a</code> shows processes for all users (except session leaders); <code>-u</code> shows user-oriented detail (user, %CPU, %MEM); <code>-x</code> includes processes with no terminal (daemons). Sort by CPU: <code>ps aux --sort=-%cpu | head -n 4</code></p>
+        <h4>ps options cheat sheet</h4>
+        <table>
+          <tr><th>Option</th><th>Description</th></tr>
+          <tr><td><code>a</code></td><td>Show processes for all users (BSD style)</td></tr>
+          <tr><td><code>u</code></td><td>Display user-oriented format</td></tr>
+          <tr><td><code>x</code></td><td>Include processes without a controlling terminal</td></tr>
+          <tr><td><code>aux</code></td><td>Show all processes in detailed format</td></tr>
+          <tr><td><code>-e</code></td><td>Show all processes (UNIX style)</td></tr>
+          <tr><td><code>-f</code></td><td>Full-format listing</td></tr>
+          <tr><td><code>-l</code></td><td>Long format</td></tr>
+          <tr><td><code>-u &lt;user&gt;</code></td><td>Show processes for a specific user</td></tr>
+          <tr><td><code>-p &lt;pid&gt;</code></td><td>Show process by PID</td></tr>
+          <tr><td><code>-C &lt;cmd&gt;</code></td><td>Show processes by command name</td></tr>
+        </table>
+        <h4>pgrep -f vs pgrep -x</h4>
+        <p><code>pgrep -f "java"</code> matches against the <strong>entire command line</strong>, not just the process name — so <code>java -jar myapp.jar</code> and <code>/usr/bin/python script_using_java.py</code> would both match. That can cause false positives if unrelated commands happen to contain "java" in their arguments.</p>
+        <h4>Check a process is running, restart if not</h4>
+        <pre><code><span class="cm">#!/bin/bash</span>
+<span class="var">PROCESS_NAME</span>=<span class="str">"java"</span>
+<span class="var">START_COMMAND</span>=<span class="str">"/path/to/start.sh"</span>
+<span class="var">WAIT_SECONDS</span>=5
+<span class="var">LOG_FILE</span>=<span class="str">"/var/log/java_monitor.log"</span>
+
+<span class="cm"># Check if Java process is running</span>
+<span class="kw">if</span> ! pgrep -f "<span class="var">$PROCESS_NAME</span>" &gt; /dev/null; <span class="kw">then</span>
+  echo "Process not running. Waiting <span class="var">$WAIT_SECONDS</span> seconds..."
+  sleep <span class="var">$WAIT_SECONDS</span>
+  echo "Starting process..."
+  <span class="var">$START_COMMAND</span> &amp;
+  echo "$(date): Java process restarted" &gt;&gt; "<span class="var">$LOG_FILE</span>"
+<span class="kw">else</span>
+  echo "Process is already running."
+<span class="kw">fi</span></code></pre>
+        <p><code>!</code> negates the result: <code>pgrep</code> exits 0 (true) if it finds a match and 1 (false) if it doesn't — <code>!</code> flips that, so the block only runs when the process is <em>not</em> running.</p>
+      </div></div>
+    </div>
+
+    <!-- 10 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🧩</div>
+        <div class="step-body">
+          <div class="step-num">STEP 10</div>
+          <div class="title-row"><span class="step-title">10 · systemd services</span><span class="pill" style="background:rgba(245,185,66,.12);color:var(--amber)">NO NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>What is systemd?</h4>
+        <p><strong>systemd</strong> is the system and service manager used by many modern Linux distributions. It manages units such as services, sockets, mounts, timers and targets. A <code>.service</code> unit describes a process supervised by systemd.</p>
+        <h4>Most-used <code>systemctl</code> commands</h4>
+        <table>
+          <tr><th>Command</th><th>Purpose</th></tr>
+          <tr><td><code>systemctl status nginx</code></td><td>Show service state and recent status information</td></tr>
+          <tr><td><code>systemctl start nginx</code></td><td>Start a service now</td></tr>
+          <tr><td><code>systemctl stop nginx</code></td><td>Stop a service now</td></tr>
+          <tr><td><code>systemctl restart nginx</code></td><td>Stop and start the service</td></tr>
+          <tr><td><code>systemctl reload nginx</code></td><td>Ask the service to reload configuration without a full restart, when supported</td></tr>
+          <tr><td><code>systemctl enable nginx</code></td><td>Configure the service to start automatically at boot</td></tr>
+          <tr><td><code>systemctl disable nginx</code></td><td>Remove its boot-time enablement</td></tr>
+          <tr><td><code>systemctl is-active nginx</code></td><td>Check whether it is currently active</td></tr>
+          <tr><td><code>systemctl is-enabled nginx</code></td><td>Check whether it is enabled for startup</td></tr>
+          <tr><td><code>systemctl --failed</code></td><td>List failed units</td></tr>
+        </table>
+        <h4>Unit files</h4>
+        <p>A service unit commonly contains <code>[Unit]</code>, <code>[Service]</code>, and <code>[Install]</code> sections. Important settings include <code>Description=</code>, <code>After=</code>/<code>Requires=</code>, <code>ExecStart=</code>, <code>User=</code>, <code>Restart=</code> and <code>WantedBy=</code>.</p>
+        <pre><code>[Unit]
+Description=My Application
+After=network.target
+
+[Service]
+User=appuser
+ExecStart=/opt/myapp/start.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+        <h4>Changing a unit safely</h4>
+        <pre><code>systemctl edit myapp.service
+systemctl daemon-reload
+systemctl restart myapp.service
+systemctl status myapp.service</code></pre>
+        <p><strong>Important:</strong> <code>daemon-reload</code> reloads unit configuration; it does not by itself restart the service.</p>
+        <h4>Common troubleshooting flow</h4>
+        <pre><code>systemctl status myapp.service
+journalctl -u myapp.service -n 100
+journalctl -u myapp.service --since "30 minutes ago"
+systemctl list-dependencies myapp.service</code></pre>
+        <p class="source-note">Web reviewed: <code>systemctl</code>, <code>systemd.unit</code> and <code>systemd.service</code> manuals.</p>
+</div></div>
+    </div>
+
+    <!-- 11 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🌐</div>
+        <div class="step-body">
+          <div class="step-num">STEP 11</div>
+          <div class="title-row"><span class="step-title">11 · Networking essentials</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>Connectivity &amp; diagnostics</h4>
+        <table>
+          <tr><th>Command</th><th>Platform</th><th>Purpose</th></tr>
+          <tr><td><code>ping</code></td><td>All</td><td>Tests reachability of a host via ICMP</td></tr>
+          <tr><td><code>traceroute</code> / <code>tracert</code></td><td>Linux / Windows</td><td>Shows the path packets take to a destination</td></tr>
+          <tr><td><code>nslookup</code></td><td>All</td><td>Queries DNS to resolve a domain/IP</td></tr>
+          <tr><td><code>dig</code></td><td>Linux/Mac</td><td>Advanced DNS lookup</td></tr>
+          <tr><td><code>telnet</code></td><td>All</td><td>Tests connectivity to a specific port</td></tr>
+          <tr><td><code>curl</code> / <code>wget</code></td><td>Linux/Mac</td><td>Tests HTTP/HTTPS endpoints</td></tr>
+        </table>
+        <h4>IP &amp; interface configuration</h4>
+        <table>
+          <tr><th>Command</th><th>Platform</th><th>Purpose</th></tr>
+          <tr><td><code>ip a</code> / <code>ifconfig</code></td><td>Linux</td><td>Shows IP, MAC, and interface details</td></tr>
+          <tr><td><code>ip route</code> / <code>route -n</code></td><td>Linux</td><td>Displays the routing table</td></tr>
+          <tr><td><code>ipconfig</code></td><td>Windows</td><td>Shows IP configuration</td></tr>
+          <tr><td><code>netsh</code></td><td>Windows</td><td>Advanced network configuration</td></tr>
+        </table>
+        <h4>Monitoring &amp; statistics</h4>
+        <table>
+          <tr><th>Command</th><th>Platform</th><th>Purpose</th></tr>
+          <tr><td><code>netstat</code></td><td>All</td><td>Shows active connections and ports</td></tr>
+          <tr><td><code>ss</code></td><td>Linux</td><td>Modern alternative to netstat</td></tr>
+          <tr><td><code>lsof -i</code></td><td>Linux/Mac</td><td>Lists open ports and their processes</td></tr>
+          <tr><td><code>tcpdump</code></td><td>Linux</td><td>Captures network packets</td></tr>
+          <tr><td><code>nmap</code></td><td>All</td><td>Scans ports and services on remote hosts</td></tr>
+        </table>
+        <h4>Misc &amp; utilities</h4>
+        <table>
+          <tr><th>Command</th><th>Platform</th><th>Purpose</th></tr>
+          <tr><td><code>hostname</code></td><td>All</td><td>Displays or sets the system hostname</td></tr>
+          <tr><td><code>arp</code></td><td>All</td><td>Displays the ARP cache (IP ↔ MAC mapping)</td></tr>
+          <tr><td><code>getmac</code></td><td>Windows</td><td>Shows MAC address</td></tr>
+          <tr><td><code>nmcli</code></td><td>Linux</td><td>Manages NetworkManager settings</td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 12 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">📦</div>
+        <div class="step-body">
+          <div class="step-num">STEP 12</div>
+          <div class="title-row"><span class="step-title">12 · Package management</span><span class="pill" style="background:rgba(245,185,66,.12);color:var(--amber)">NO NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>Package managers</h4>
+        <p>Package managers install software, resolve dependencies, track installed files/versions, remove packages, and obtain updates from configured repositories. The commands differ by Linux distribution.</p>
+        <table>
+          <tr><th>Distribution family</th><th>Common tools</th><th>Package format</th></tr>
+          <tr><td>Debian / Ubuntu</td><td><code>apt</code>, <code>apt-get</code>, <code>dpkg</code></td><td><code>.deb</code></td></tr>
+          <tr><td>RHEL / Fedora family</td><td><code>dnf</code>, <code>rpm</code></td><td><code>.rpm</code></td></tr>
+        </table>
+        <h4>Ubuntu / Debian: APT</h4>
+        <pre><code>apt update
+apt search nginx
+apt show nginx
+apt install nginx
+apt upgrade
+apt remove nginx
+apt purge nginx
+dpkg -l | grep nginx
+dpkg -L nginx
+dpkg -S /usr/sbin/nginx</code></pre>
+        <p><strong>Important distinction:</strong> <code>apt update</code> refreshes the local package index; it does not itself upgrade installed packages. <code>apt upgrade</code> then installs available upgrades. In scripts, prefer <code>apt-get</code> rather than the interactive-oriented <code>apt</code> interface.</p>
+        <h4>RHEL / Fedora: DNF/RPM</h4>
+        <pre><code>dnf search nginx
+dnf info nginx
+dnf install nginx
+dnf update
+dnf remove nginx
+rpm -qa | grep nginx
+rpm -qi nginx
+rpm -ql nginx
+rpm -qf /usr/sbin/nginx</code></pre>
+        <h4>Production-support concepts</h4>
+        <ul>
+          <li>Know which repository a package came from and which version is installed.</li>
+          <li>Check dependencies before forcing package changes.</li>
+          <li>Understand that package removal and configuration-file removal can be different operations.</li>
+          <li>For outages, verify package changes against the incident timeline before rolling anything back.</li>
+        </ul>
+        <p class="source-note">Web reviewed: current Ubuntu Server APT documentation and Ubuntu <code>apt</code>/<code>apt-get</code> manuals.</p>
+</div></div>
+    </div>
+
+    <!-- 13 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">💽</div>
+        <div class="step-body">
+          <div class="step-num">STEP 13</div>
+          <div class="title-row"><span class="step-title">13 · Disks and filesystems</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">6 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4><code>df</code> — filesystem-level capacity</h4>
+        <p><code>df</code> reports the space used and available on <strong>mounted filesystems</strong>. Think of <code>df</code> as the <strong>filesystem / partition view</strong>, not the “which directory contains my files?” view.</p>
+        <pre><code>df -h
+df -h /var
+df -T
+df -i
+df -x tmpfs -h</code></pre>
+        <table>
+          <tr><th>Command</th><th>What it tells you</th></tr>
+          <tr><td><code>df -h</code></td><td>Filesystem size, used space, available space, percentage used and mount point in human-readable units.</td></tr>
+          <tr><td><code>df -T</code></td><td>Also shows filesystem type, such as ext4, xfs, btrfs or another supported type.</td></tr>
+          <tr><td><code>df -i</code></td><td>Shows inode usage. A filesystem can run out of inodes even when it still has free bytes.</td></tr>
+          <tr><td><code>df -h /path</code></td><td>Shows the filesystem that contains the supplied path.</td></tr>
+        </table>
+
+        <h4>Reading <code>df -h</code></h4>
+        <pre><code>Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2        80G   68G   12G  85% /
+/dev/sdb1       500G  220G  280G  45% /data</code></pre>
+        <p><strong>Size</strong> = filesystem capacity, <strong>Used</strong> = space currently accounted as used, <strong>Avail</strong> = space available to users/filesystem operations, <strong>Use%</strong> = percentage used, and <strong>Mounted on</strong> = where that filesystem appears in the directory tree.</p>
+
+        <h4><code>du</code> — directory/file-level usage</h4>
+        <p><code>du</code> estimates the space used by a set of files. Think of <code>du</code> as the <strong>directory / file investigation view</strong>. It is the command you normally use after <code>df</code> tells you a filesystem is filling up.</p>
+        <pre><code>du -sh /var/log
+du -sh /var/log/*
+du -h --max-depth=1 /var
+du -xhd1 /var
+du -ah /var/log | sort -hr | head -n 20</code></pre>
+        <table>
+          <tr><th>Option</th><th>Meaning</th><th>Example</th></tr>
+          <tr><td><code>-h</code></td><td>Human-readable sizes</td><td><code>du -h /var</code></td></tr>
+          <tr><td><code>-s</code></td><td>Summary instead of listing every descendant</td><td><code>du -sh /var/log</code></td></tr>
+          <tr><td><code>-a</code></td><td>Include files as well as directories</td><td><code>du -ah /var/log</code></td></tr>
+          <tr><td><code>--max-depth=1</code></td><td>Show one directory level below the target</td><td><code>du -h --max-depth=1 /var</code></td></tr>
+          <tr><td><code>-x</code></td><td>Stay on the same filesystem; do not cross into mounted filesystems</td><td><code>du -xhd1 /</code></td></tr>
+        </table>
+
+        <h4><code>df</code> vs <code>du</code> — the most important distinction</h4>
+        <table>
+          <tr><th>Question</th><th>Use</th><th>Example</th></tr>
+          <tr><td>How full is the filesystem?</td><td><code>df</code></td><td><code>df -h /</code></td></tr>
+          <tr><td>Which directory is consuming space?</td><td><code>du</code></td><td><code>du -xhd1 / | sort -h</code></td></tr>
+          <tr><td>Which files are largest?</td><td><code>du</code> + <code>find</code>/<code>sort</code></td><td><code>find /var -type f -exec du -h {} + | sort -hr | head</code></td></tr>
+          <tr><td>Are inodes exhausted?</td><td><code>df -i</code></td><td><code>df -ih</code></td></tr>
+        </table>
+
+        <h4>Why can <code>df</code> and <code>du</code> show different numbers?</h4>
+        <ul>
+          <li><strong>Deleted but still-open files:</strong> a process can keep a deleted file open, so <code>du</code> may not find the pathname while the filesystem space remains allocated. Use <code>lsof +L1</code> to investigate on systems where <code>lsof</code> is installed.</li>
+          <li><strong>Different filesystem boundaries:</strong> <code>du /path</code> can traverse into mounted filesystems. <code>du -x</code> keeps the investigation on one filesystem.</li>
+          <li><strong>Filesystem metadata / reserved space / implementation details:</strong> <code>df</code> reports filesystem-level accounting, while <code>du</code> estimates usage from the files it examines. They are answering related but different questions.</li>
+          <li><strong>Special filesystems and mounts:</strong> systems can contain virtual or network filesystems that do not behave like ordinary local storage.</li>
+        </ul>
+
+        <h4>Practical disk-space troubleshooting</h4>
+        <pre><code># 1. Identify the full filesystem
+df -h
+
+# 2. Identify the filesystem type and inode usage
+df -T
+df -i
+
+# 3. Find the largest top-level directories on that filesystem
+du -xhd1 / | sort -h
+
+# 4. Drill into the suspicious directory
+du -xhd1 /var | sort -h
+
+# 5. Find large files
+find /var -xdev -type f -size +500M -ls
+
+# 6. Check deleted files still held open by processes
+lsof +L1</code></pre>
+
+        <h4>Common operational checks</h4>
+        <table>
+          <tr><th>Problem</th><th>Checks</th></tr>
+          <tr><td>“Disk is full”</td><td><code>df -h</code> → <code>du -xhd1</code> → drill down to large directories/files.</td></tr>
+          <tr><td>“No space left” but <code>df -h</code> looks okay</td><td>Check <code>df -i</code> for inode exhaustion and investigate application-specific limits.</td></tr>
+          <tr><td><code>du</code> total seems smaller than <code>df</code></td><td>Check mount boundaries, deleted-open files, filesystem accounting and special filesystems.</td></tr>
+          <tr><td>Log directory is growing</td><td>Use <code>du -sh /var/log/*</code>, inspect log rotation, and check whether an application is producing excessive logs.</td></tr>
+        </table>
+
+        <p><strong>Remember:</strong> <code>df</code> answers <em>“How full is the filesystem?”</em>; <code>du</code> answers <em>“Which files/directories are consuming space?”</em>. In production troubleshooting, start with <code>df</code>, then use <code>du</code> to locate the cause.</p>
+        <p class="source-note">Web reviewed: GNU Coreutils <code>df</code>/<code>du</code> documentation and Red Hat storage guidance. The details above expand the existing Disks and filesystems topic; no new topic card was created.</p>
+      </div></div>
+    </div>
+
+    <!-- 14 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">📊</div>
+        <div class="step-body">
+          <div class="step-num">STEP 14</div>
+          <div class="title-row"><span class="step-title">14 · Monitoring and performance</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>Paging vs swapping</h4>
+        <table>
+          <tr><th>Feature</th><th>Paging</th><th>Swapping</th></tr>
+          <tr><td>Definition</td><td>Memory management scheme that breaks physical memory into fixed-size blocks called pages, allowing non-contiguous allocation and virtual memory</td><td>Moving entire processes (or parts of them) between RAM and disk (swap space) to free physical memory</td></tr>
+        </table>
+        <h4>CPU / memory alert script</h4>
+        <pre><code><span class="cm">#!/bin/bash</span>
+<span class="var">CPU</span>=$(top -bn1 | grep "Cpu(s)" | awk '{print 100 - $8}')
+<span class="var">MEM</span>=$(free | awk '/Mem:/ {printf("%.2f"), $3/$2 * 100}')
+<span class="var">CPU_LIMIT</span>=80
+<span class="var">MEM_LIMIT</span>=80
+
+[ "${<span class="var">CPU</span>%.*}" -gt <span class="var">$CPU_LIMIT</span> ] &amp;&amp; echo "High CPU: <span class="var">$CPU</span>%" | mail -s "CPU Alert" user@example.com
+[ "${<span class="var">MEM</span>%.*}" -gt <span class="var">$MEM_LIMIT</span> ] &amp;&amp; echo "High Memory: <span class="var">$MEM</span>%" | mail -s "Memory Alert" user@example.com</code></pre>
+      </div></div>
+    </div>
+
+    <!-- 15 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">⏰</div>
+        <div class="step-body">
+          <div class="step-num">STEP 15</div>
+          <div class="title-row"><span class="step-title">15 · Scheduled jobs</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <p><strong>crontab</strong> (cron table) is a config file that schedules commands or scripts to run automatically at set times, managed by the cron daemon running in the background.</p>
+        <pre><code>*  *  *  *  *  command_to_run
+|  |  |  |  |
+|  |  |  |  +---- Day of week (0-7, Sunday=0 or 7)
+|  |  |  +------- Month (1-12)
+|  |  +---------- Day of month (1-31)
+|  +------------- Hour (0-23)
++---------------- Minute (0-59)</code></pre>
+        <p>Example — run a script at 2 AM daily and log stdout + stderr:</p>
+        <pre><code>0 2 * * * /path/to/script.sh &gt;&gt; /var/log/script.log 2&gt;&amp;1</code></pre>
+      </div></div>
+    </div>
+
+    <!-- 16 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🖥️</div>
+        <div class="step-body">
+          <div class="step-num">STEP 16</div>
+          <div class="title-row"><span class="step-title">16 · Shell configuration</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>I/O redirection &amp; streams</h4>
+        <table>
+          <tr><th>Symbol</th><th>Meaning</th></tr>
+          <tr><td><code>1</code></td><td>Standard output (stdout)</td></tr>
+          <tr><td><code>2</code></td><td>Standard error (stderr)</td></tr>
+          <tr><td><code>&gt;</code></td><td>Redirect operator</td></tr>
+          <tr><td><code>2&gt;&amp;1</code></td><td>Redirect stderr to stdout</td></tr>
+        </table>
+        <p>This is what makes <code>/path/to/script.sh &gt;&gt; /var/log/script.log 2&gt;&amp;1</code> (from Scheduled jobs) capture both normal output and errors into one log file.</p>
+      </div></div>
+    </div>
+
+    <!-- 17 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🧮</div>
+        <div class="step-body">
+          <div class="step-num">STEP 17</div>
+          <div class="title-row"><span class="step-title">17 · Text processing</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>sort — basic syntax</h4>
+        <pre><code>sort [OPTIONS] [FILE]</code></pre>
+        <p>Sorts lines in a file or input stream; default behavior sorts alphabetically (ASCII order).</p>
+        <table>
+          <tr><th>Option</th><th>Description</th><th>Example</th></tr>
+          <tr><td><code>-n</code></td><td>Sort numerically</td><td><code>sort -n numbers.txt</code></td></tr>
+          <tr><td><code>-r</code></td><td>Reverse order</td><td><code>sort -r names.txt</code></td></tr>
+          <tr><td><code>-k</code></td><td>Sort by specific column</td><td><code>sort -k 2 file.txt</code></td></tr>
+          <tr><td><code>-u</code></td><td>Remove duplicate lines</td><td><code>sort -u items.txt</code></td></tr>
+          <tr><td><code>-c</code></td><td>Check if a file is already sorted</td><td><code>sort -c file.txt</code></td></tr>
+          <tr><td><code>-o</code></td><td>Write output to a file</td><td><code>sort file.txt -o sorted.txt</code></td></tr>
+          <tr><td><code>-t</code></td><td>Specify a delimiter</td><td><code>sort -t ',' -k 2 data.csv</code></td></tr>
+          <tr><td><code>-M</code></td><td>Sort by month names</td><td><code>sort -M months.txt</code></td></tr>
+          <tr><td><code>-h</code></td><td>Human-readable numeric sort (2K, 1G)</td><td><code>sort -h sizes.txt</code></td></tr>
+          <tr><td><code>-f</code></td><td>Ignore case</td><td><code>sort -f names.txt</code></td></tr>
+        </table>
+        <h4>sort -u vs uniq</h4>
+        <table>
+          <tr><th>Feature</th><th><code>sort -u</code></th><th><code>uniq</code></th></tr>
+          <tr><td>Function</td><td>Sorts and removes duplicate lines in one step</td><td>Removes adjacent duplicate lines only</td></tr>
+          <tr><td>Requires sorted input?</td><td>No — sorts first, then removes duplicates</td><td>Yes — input must already be sorted</td></tr>
+          <tr><td>Efficiency</td><td>One-pass operation</td><td>Often paired with <code>sort</code> for accuracy</td></tr>
+          <tr><td>Use case</td><td>Quick dedup with sorting</td><td>Precise control over duplicate filtering</td></tr>
+        </table>
+        <h4>cmp vs diff</h4>
+        <table>
+          <tr><th>Feature</th><th><code>cmp</code></th><th><code>diff</code></th></tr>
+          <tr><td>Purpose</td><td>Compares files byte by byte</td><td>Compares files line by line</td></tr>
+          <tr><td>Best for</td><td>Binary files, checking if files are identical</td><td>Text files, source code, config files</td></tr>
+          <tr><td>Output</td><td>Reports the first mismatch (byte + line number)</td><td>Shows all differences and how to reconcile them</td></tr>
+          <tr><td>Silent if identical?</td><td>Yes</td><td>No, unless using <code>diff -q</code></td></tr>
+          <tr><td>Compares directories?</td><td>No</td><td>Yes</td></tr>
+        </table>
+        <h4>awk</h4>
+        <p>Print the last field of each line, comma-delimited:</p>
+        <pre><code>awk -F',' '{print $NF ","}' filename</code></pre>
+        <table>
+          <tr><th>Expression</th><th>Meaning</th></tr>
+          <tr><td><code>NF</code></td><td>Number of fields in the current line</td></tr>
+          <tr><td><code>$NF</code></td><td>Value of the last field in the current line</td></tr>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- 18 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🔗</div>
+        <div class="step-body">
+          <div class="step-num">STEP 18</div>
+          <div class="title-row"><span class="step-title">18 · Links</span><span class="pill" style="background:rgba(245,185,66,.12);color:var(--amber)">NO NOTES</span></div>
+          <div class="step-meta">2 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>Hard links vs symbolic links</h4>
+        <table>
+          <tr><th>Feature</th><th>Hard link</th><th>Symbolic (soft) link</th></tr>
+          <tr><td>Creation</td><td><code>ln file link</code></td><td><code>ln -s target link</code></td></tr>
+          <tr><td>What it stores</td><td>Another directory entry for the same inode</td><td>A pathname pointing to another file/path</td></tr>
+          <tr><td>Cross filesystem?</td><td>No</td><td>Yes, if the target is reachable</td></tr>
+          <tr><td>Can point to directory?</td><td>Normally no</td><td>Yes</td></tr>
+          <tr><td>Dangling link possible?</td><td>No in the same sense</td><td>Yes — target may be removed/moved</td></tr>
+          <tr><td>Inode</td><td>Same inode as the original</td><td>Different inode for the link itself</td></tr>
+        </table>
+        <h4>Create and inspect links</h4>
+        <pre><code>echo "hello" > original.txt
+ln original.txt hard.txt
+ln -s original.txt soft.txt
+
+ls -li original.txt hard.txt soft.txt
+readlink soft.txt
+readlink -f soft.txt
+stat original.txt hard.txt soft.txt</code></pre>
+        <p>A hard link is another name for the same underlying file/inode. Removing the original filename does not remove the file while another hard link still exists. A symbolic link stores a path; if that path no longer resolves, the symlink becomes dangling.</p>
+        <h4>Important operational points</h4>
+        <ul>
+          <li>Hard links cannot cross filesystem boundaries.</li>
+          <li>Use symbolic links when you need a path alias, including links to directories.</li>
+          <li>Prefer relative symlinks when they should remain valid after moving the containing directory tree.</li>
+          <li>Be careful when deleting or replacing symlink targets in production; verify what the link actually points to.</li>
+        </ul>
+        <p class="source-note">Web reviewed: GNU Coreutils <code>ln</code> documentation.</p>
+</div></div>
+    </div>
+
+    <!-- 19 -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">🗜️</div>
+        <div class="step-body">
+          <div class="step-num">STEP 19</div>
+          <div class="title-row"><span class="step-title">19 · Archives and compression</span><span class="pill notes">NOTES</span></div>
+          <div class="step-meta">3 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <h4>tar + gzip vs zip</h4>
+        <table>
+          <tr><th>Tool</th><th>Type</th><th>Works on</th><th>Multi-file?</th><th>Extension</th></tr>
+          <tr><td><code>zip</code></td><td>Archiver + compressor</td><td>Files &amp; dirs</td><td>Yes</td><td><code>.zip</code></td></tr>
+          <tr><td><code>gzip</code></td><td>Compressor</td><td>Single file</td><td>No</td><td><code>.gz</code></td></tr>
+          <tr><td><code>tar</code></td><td>Archiver</td><td>Files &amp; dirs</td><td>Yes (no compression by default)</td><td><code>.tar</code></td></tr>
+          <tr><td>tar + gzip</td><td>Archiver + compressor</td><td>Files &amp; dirs</td><td>Yes</td><td><code>.tar.gz</code> / <code>.tgz</code></td></tr>
+        </table>
+        <table>
+          <tr><th>Feature</th><th>zip</th><th>tar</th></tr>
+          <tr><td>Preserves permissions</td><td>Limited</td><td>Yes</td></tr>
+          <tr><td>Preserves ownership</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Preserves symlinks</td><td>No</td><td>Yes</td></tr>
+        </table>
+        <h4>Frequently used tar options</h4>
+        <table>
+          <tr><th>Short</th><th>Long</th><th>Description</th></tr>
+          <tr><td><code>-c</code></td><td><code>--create</code></td><td>Create a new archive</td></tr>
+          <tr><td><code>-x</code></td><td><code>--extract</code></td><td>Extract files from an archive</td></tr>
+          <tr><td><code>-t</code></td><td><code>--list</code></td><td>List contents of an archive</td></tr>
+          <tr><td><code>-f</code></td><td><code>--file</code></td><td>Specify archive file name</td></tr>
+          <tr><td><code>-v</code></td><td><code>--verbose</code></td><td>Show progress while processing</td></tr>
+          <tr><td><code>-z</code></td><td><code>--gzip</code></td><td>Compress/decompress using gzip</td></tr>
+          <tr><td><code>-j</code></td><td><code>--bzip2</code></td><td>Use bzip2 compression</td></tr>
+          <tr><td><code>-J</code></td><td><code>--xz</code></td><td>Use xz compression</td></tr>
+          <tr><td><code>-r</code></td><td><code>--append</code></td><td>Append files to an archive</td></tr>
+          <tr><td><code>-u</code></td><td><code>--update</code></td><td>Add only newer files to archive</td></tr>
+          <tr><td><code>-d</code></td><td><code>--diff</code></td><td>Compare archive with file system</td></tr>
+          <tr><td><code>--delete</code></td><td>—</td><td>Delete files from archive (GNU tar only)</td></tr>
+          <tr><td><code>-O</code></td><td><code>--to-stdout</code></td><td>Extract files to standard output</td></tr>
+        </table>
+        <h4>Use cases</h4>
+        <table>
+          <tr><th>Use case</th><th>Command</th></tr>
+          <tr><td>Create .tar.gz archive</td><td><code>tar -czvf archive.tar.gz folder/</code></td></tr>
+          <tr><td>Extract .tar.gz archive</td><td><code>tar -xzvf archive.tar.gz</code></td></tr>
+          <tr><td>List archive contents</td><td><code>tar -tzvf archive.tar.gz</code></td></tr>
+          <tr><td>Extract specific file</td><td><code>tar -xzvf archive.tar.gz path/inside/file.txt</code></td></tr>
+          <tr><td>Extract to specific directory</td><td><code>tar -xzvf archive.tar.gz -C /target/dir</code></td></tr>
+          <tr><td>Exclude a folder/file</td><td><code>tar -czvf archive.tar.gz folder/ --exclude=folder/tmp</code></td></tr>
+        </table>
+        <h4>Real-world use: archive old logs</h4>
+        <pre><code><span class="cm">#!/bin/bash</span>
+<span class="var">LOG_DIR</span>="/path/to/logs"
+<span class="var">ARCHIVE_DIR</span>="/path/to/archive"
+<span class="var">DAYS</span>=5
+
+mkdir -p "<span class="var">$ARCHIVE_DIR</span>"
+
+<span class="cm"># Find log files older than $DAYS days</span>
+<span class="var">OLD_LOGS</span>=$(find "<span class="var">$LOG_DIR</span>" -type f -name "*.log" -mtime +<span class="var">$DAYS</span>)
+
+<span class="cm"># Archive them into a timestamped tar.gz, then remove the originals</span>
+<span class="var">TIMESTAMP</span>=$(date +'%Y%m%d_%H%M%S')
+tar -czf "<span class="var">$ARCHIVE_DIR</span>/logs_archive_<span class="var">$TIMESTAMP</span>.tar.gz" <span class="var">$OLD_LOGS</span>
+find "<span class="var">$LOG_DIR</span>" -type f -name "*.log" -mtime +<span class="var">$DAYS</span> -exec rm {} \;</code></pre>
+      </div></div>
+    </div>
+
+    <!-- 20 - NEW -->
+    <div class="step-card" data-notes="yes">
+      <div class="step-header">
+        <div class="step-icon">✨</div>
+        <div class="step-body">
+          <div class="step-num">STEP 20 · ADDED</div>
+          <div class="title-row"><span class="step-title">20 · Shell scripting &amp; automation</span><span class="pill new">NEW</span></div>
+          <div class="step-meta">4 concepts</div>
+        </div>
+        <div class="step-right"><span class="chevron">▾</span></div>
+      </div>
+      <div class="step-content"><div class="step-content-inner">
+        <div class="new-note">Not one of the original 19 steps. Your notes have a whole layer on scripting mechanics — positional parameters, exit status — that powers the automation scripts elsewhere (Processes, Monitoring, Archives), so it's called out as its own topic here.</div>
+        <h4>Special variables</h4>
+        <table>
+          <tr><th>Variable</th><th>Meaning</th></tr>
+          <tr><td><code>$0</code></td><td>Name of the script or command being run</td></tr>
+          <tr><td><code>$1</code></td><td>First argument passed to the script</td></tr>
+          <tr><td><code>$2, $3, …</code></td><td>Second, third, etc. arguments</td></tr>
+          <tr><td><code>$#</code></td><td>Number of arguments passed</td></tr>
+          <tr><td><code>$@</code></td><td>All arguments as separate strings (preserves quoting)</td></tr>
+          <tr><td><code>$*</code></td><td>All arguments as a single string</td></tr>
+          <tr><td><code>$$</code></td><td>Process ID (PID) of the current script</td></tr>
+          <tr><td><code>$?</code></td><td>Exit status of the last command (0 = success)</td></tr>
+          <tr><td><code>$_</code></td><td>Last argument of the previous command</td></tr>
+          <tr><td><code>$!</code></td><td>PID of the last background process</td></tr>
+        </table>
+        <p>These are what let a script branch on success/failure (<code>$?</code>) or negate a check with <code>!</code> — see the process-restart script in <strong>Processes</strong> — and are the building blocks behind the automation in <strong>Monitoring and performance</strong> and <strong>Archives and compression</strong>.</p>
+      </div></div>
+    </div>
+
+  </div>
+
+  <div class="no-results" id="noResults">No steps match that search.</div>
+
+  <footer>19 original steps · no new topics added · existing topics expanded with practical Linux concepts</footer>
+</div>
+
+<script>
+  const cards = Array.from(document.querySelectorAll('.step-card'));
+
+  // toggle expand/collapse
+  cards.forEach(card => {
+    const header = card.querySelector('.step-header');
+    const content = card.querySelector('.step-content');
+    header.addEventListener('click', () => {
+      const isOpen = card.classList.contains('open');
+      if (isOpen) {
+        content.style.maxHeight = null;
+        card.classList.remove('open');
+      } else {
+        card.classList.add('open');
+        content.style.maxHeight = content.scrollHeight + 'px';
+      }
+    });
+  });
+
+  // stats
+  document.getElementById('notesCount').textContent =
+    cards.filter(c => c.dataset.notes === 'yes').length;
+  document.getElementById('gapCount').textContent =
+    cards.filter(c => c.dataset.notes === 'none').length;
+
+  // search
+  const search = document.getElementById('search');
+  const noResults = document.getElementById('noResults');
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    let visible = 0;
+    cards.forEach(card => {
+      const text = card.textContent.toLowerCase();
+      const match = q === '' || text.includes(q);
+      card.classList.toggle('hidden', !match);
+      if (match) visible++;
+    });
+    noResults.style.display = visible === 0 ? 'block' : 'none';
+  });
+</script>
+</body>
+</html>
